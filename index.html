@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arrows: Chain Reaction</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --accent: #38bdf8;
+            --moving-color: #f472b6;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 900;
+            margin: 0 0 10px 0;
+            background: linear-gradient(90deg, #38bdf8, #34d399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -2px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            align-items: center;
+            font-size: 0.9rem;
+            color: var(--text-dim);
+        }
+
+        .stats-container {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stats-card {
+            background: var(--card-bg);
+            padding: 10px 20px;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            text-align: center;
+            min-width: 80px;
+        }
+
+        .stats-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .stats-value {
+            font-family: monospace;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .btn-reset {
+            background: var(--card-bg);
+            border: 1px solid #334155;
+            color: var(--text-main);
+            padding: 10px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-reset:hover {
+            background: #334155;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(var(--cols), 1fr);
+            gap: 8px;
+            width: 90vw;
+            max-width: 500px;
+            aspect-ratio: 1 / 1;
+            /* Impedisce alla griglia di cambiare dimensione */
+            grid-auto-rows: 1fr;
+        }
+
+        .cell {
+            background: var(--card-bg);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+            position: relative;
+            /* Dimensioni fisse basate sulla griglia */
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        .cell:hover {
+            background: #334155;
+            transform: scale(1.05);
+        }
+
+        .cell.trail {
+            background: #334155 !important;
+            transition: background 0.1s;
+        }
+
+        .arrow {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--accent);
+            user-select: none;
+            display: block;
+            /* Dimensioni esplicite per evitare reflow */
+            width: 1.2em;
+            height: 1.2em;
+            line-height: 1.2em;
+            text-align: center;
+            transition: color 0.2s, transform 0.1s linear;
+        }
+
+        .arrow.moving {
+            color: var(--moving-color);
+            z-index: 10;
+        }
+
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--card-bg);
+            border: 2px solid var(--accent);
+            padding: 30px;
+            border-radius: 16px;
+            text-align: center;
+            display: none;
+            z-index: 100;
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+        }
+
+        input[type="number"], input[type="range"] {
+            accent-color: var(--accent);
+            vertical-align: middle;
+        }
+
+        input[type="number"] {
+            background: var(--bg-color);
+            border: 1px solid #334155;
+            color: white;
+            padding: 4px;
+            border-radius: 4px;
+            width: 45px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>ARROWS</h1>
+        <div class="controls">
+            <label>Dim:
+                <input type="number" id="grid-size" value="6" min="4" max="10" onchange="resetGame()">
+            </label>
+            <label>Velocità:
+                <input type="range" id="speed-range" min="50" max="800" value="600" step="10">
+            </label>
+        </div>
+    </div>
+
+    <div class="stats-container">
+        <div class="stats-card">
+            <span class="stats-label">Click</span>
+            <span id="click-count" class="stats-value">0</span>
+        </div>
+        <div class="stats-card">
+            <span class="stats-label">Rimaste</span>
+            <span id="arrows-count" class="stats-value">0</span>
+        </div>
+        <button onclick="resetGame()" class="btn-reset">
+            <span class="stats-label">Reset</span>
+            <span class="stats-value" style="font-family: inherit;">↺</span>
+        </button>
+    </div>
+
+    <div id="game-grid" class="grid-container"></div>
+
+    <div id="win-message" class="message-box">
+        <h2 style="margin-top:0">Vittoria!</h2>
+        <p id="final-stats"></p>
+        <button onclick="resetGame()" class="btn-reset" style="background: var(--accent); color: var(--bg-color); font-weight: bold; border: none;">
+            Nuova Partita
+        </button>
+    </div>
+
+    <script>
+        const directions = [
+            { id: 'up', icon: '↑', dx: 0, dy: -1, angle: 0 },
+            { id: 'right', icon: '↑', dx: 1, dy: 0, angle: 90 },
+            { id: 'down', icon: '↑', dx: 0, dy: 1, angle: 180 },
+            { id: 'left', icon: '↑', dx: -1, dy: 0, angle: 270 }
+        ];
+
+        let grid = [];
+        let clicks = 0;
+        let isProcessing = false;
+        let arrowsRemaining = 0;
+        let currentSize = 6;
+
+        const gridElement = document.getElementById('game-grid');
+        const clickDisplay = document.getElementById('click-count');
+        const arrowDisplay = document.getElementById('arrows-count');
+        const winMessage = document.getElementById('win-message');
+        const speedSlider = document.getElementById('speed-range');
+
+        function mulberry32(a) {
+            return function() {
+              let t = a += 0x6D2B79F5;
+              t = Math.imul(t ^ t >>> 15, t | 1);
+              t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+              return ((t ^ t >>> 14) >>> 0) / 4294967296;
+            }
+        }
+
+        function initGrid() {
+            currentSize = parseInt(document.getElementById('grid-size').value) || 6;
+            grid = [];
+            gridElement.innerHTML = '';
+            gridElement.style.setProperty('--cols', currentSize);
+            arrowsRemaining = 0;
+
+            const seed = Math.floor(Date.now() / 1000) + currentSize;
+            const random = mulberry32(seed);
+
+            for (let y = 0; y < currentSize; y++) {
+                grid[y] = [];
+                for (let x = 0; x < currentSize; x++) {
+                    const dirIndex = Math.floor(random() * directions.length);
+                    const arrow = {
+                        x, y,
+                        dir: directions[dirIndex],
+                        active: true
+                    };
+                    grid[y][x] = arrow;
+                    arrowsRemaining++;
+
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.id = `cell-${x}-${y}`;
+                    cell.onclick = () => handleCellClick(x, y);
+
+                    const arrowSpan = document.createElement('span');
+                    arrowSpan.className = 'arrow';
+                    arrowSpan.innerHTML = arrow.dir.icon;
+                    arrowSpan.style.transform = `rotate(${arrow.dir.angle}deg)`;
+
+                    cell.appendChild(arrowSpan);
+                    gridElement.appendChild(cell);
+                }
+            }
+            updateStats();
+        }
+
+        async function handleCellClick(x, y) {
+            if (isProcessing || !grid[y][x].active) return;
+
+            isProcessing = true;
+            clicks++;
+            updateStats();
+            await triggerArrow(x, y);
+            isProcessing = false;
+
+            checkWin();
+        }
+
+        async function triggerArrow(x, y) {
+            const arrowData = grid[y][x];
+            if (!arrowData.active) return;
+
+            arrowData.active = false;
+            arrowsRemaining--;
+            updateStats();
+
+            const cell = document.getElementById(`cell-${x}-${y}`);
+            const arrowSpan = cell.querySelector('.arrow');
+            if (!arrowSpan) return;
+
+            arrowSpan.classList.add('moving');
+
+            let curX = x;
+            let curY = y;
+            const dx = arrowData.dir.dx;
+            const dy = arrowData.dir.dy;
+
+            return new Promise(resolve => {
+                const step = setInterval(() => {
+                    const maxDelay = 850;
+                    const delay = maxDelay - parseInt(speedSlider.value);
+
+                    curX += dx;
+                    curY += dy;
+
+                    const currentCell = document.getElementById(`cell-${curX}-${curY}`);
+                    if (currentCell) {
+                        currentCell.classList.add('trail');
+                        setTimeout(() => currentCell.classList.remove('trail'), delay);
+                    }
+
+                    arrowSpan.style.transform = `rotate(${arrowData.dir.angle}deg) translateY(-20px)`;
+                    arrowSpan.style.opacity = '0.5';
+
+                    if (curX < 0 || curX >= currentSize || curY < 0 || curY >= currentSize) {
+                        clearInterval(step);
+                        arrowSpan.style.transition = 'all 0.3s ease-out';
+                        arrowSpan.style.transform += ` translateY(-150px)`;
+                        arrowSpan.style.opacity = '0';
+                        setTimeout(() => {
+                            arrowSpan.remove();
+                            resolve();
+                        }, 300);
+                        return;
+                    }
+
+                    if (grid[curY][curX].active) {
+                        clearInterval(step);
+                        arrowSpan.style.opacity = '0';
+                        setTimeout(() => {
+                            arrowSpan.remove();
+                            triggerArrow(curX, curY).then(resolve);
+                        }, 50);
+                    }
+                }, 850 - parseInt(speedSlider.value));
+            });
+        }
+
+        function updateStats() {
+            clickDisplay.innerText = clicks;
+            arrowDisplay.innerText = arrowsRemaining;
+        }
+
+        function checkWin() {
+            if (arrowsRemaining === 0) {
+                document.getElementById('final-stats').innerText = `Griglia ripulita in ${clicks} click.`;
+                winMessage.style.display = 'block';
+            }
+        }
+
+        function resetGame() {
+            clicks = 0;
+            isProcessing = false;
+            winMessage.style.display = 'none';
+            initGrid();
+        }
+
+        window.onload = initGrid;
+    </script>
+</body>
+</html>
